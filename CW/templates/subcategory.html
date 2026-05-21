@@ -1,0 +1,180 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('catalog') }}">Крамниця</a></li>
+            {% if subcategory.category_name %}
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('catalog') }}">{{ subcategory.category_name }}</a>
+            </li>
+            {% endif %}
+            <li class="breadcrumb-item active">{{ subcategory.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">{{ subcategory.name }}</h2>
+            <p class="text-muted mb-0">{{ products|length }} товарів</p>
+        </div>
+        <a href="{{ url_for('catalog') }}" class="btn btn-outline-light">
+            ← До всіх категорій
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Фільтри -->
+        <div class="col-lg-3 col-md-4 mb-4">
+            <div class="card bg-dark border-secondary sticky-top" style="top: 20px;">
+                <div class="card-header bg-danger text-white py-3">
+                    <h5 class="mb-0"><i class="bi bi-funnel"></i> Фільтри</h5>
+                </div>
+                <div class="card-body" id="filters-container">
+                </div>
+                <div class="card-footer">
+                    <button class="btn btn-outline-light w-100" onclick="resetFilters()">
+                        Скинути всі фільтри
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9 col-md-8">
+            <div class="d-flex justify-content-end mb-3">
+                <select id="sort-select" class="form-select w-auto" onchange="applyFilters()">
+                    <option value="new">Новинки</option>
+                    <option value="price_asc">Ціна: від дешевих</option>
+                    <option value="price_desc">Ціна: від дорогих</option>
+                    <option value="name_asc">Назва А-Я</option>
+                </select>
+            </div>
+
+            <div class="row g-4" id="products-container">
+                {% for product in products %}
+                <div class="col-md-4 col-sm-6 product-item"
+                     data-price="{{ product.base_price }}"
+                     data-name="{{ product.name|lower }}"
+                     data-id="{{ product.id_product }}">
+                    <div class="card h-100 shadow-sm border-0 position-relative product-card">
+                        <button class="btn btn-light position-absolute top-0 end-0 m-2 rounded-circle shadow-sm"
+                                onclick="toggleFavorite('{{ product.id_product }}', '{{ product.name|replace("'", "\\'") }}', {{ product.base_price }})">
+                            <i class="bi bi-heart text-danger"></i>
+                        </button>
+
+                        {% if product.images and product.images|length > 0 %}
+                            <img src="{{ url_for('static', filename='images/products/' + product.images[0].filename) }}"
+                                 class="card-img-top" style="height: 210px; object-fit: cover;" alt="{{ product.name }}">
+                        {% else %}
+                            <img src="https://via.placeholder.com/300x200" class="card-img-top" alt="{{ product.name }}">
+                        {% endif %}
+
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">
+                                <a href="{{ url_for('product_page', pid=product.id_product) }}" class="text-decoration-none fw-bold">
+                                    {{ product.name }}
+                                </a>
+                            </h5>
+                            <p class="text-muted small flex-grow-1">{{ product.description[:80] }}...</p>
+                            <h4 class="text-primary fw-bold mb-3">{{ product.base_price }} грн</h4>
+
+                            <button class="btn btn-primary mt-auto"
+                                    onclick="addToCart('{{ product.id_product }}', '{{ product.name|replace("'", "\\'") }}', {{ product.base_price }})">
+                                🛒 До кошика
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const allProducts = {{ products|tojson }};
+
+function renderFilters() {
+    const container = document.getElementById('filters-container');
+    const attributes = {};
+
+    allProducts.forEach(product => {
+        if (product.attributes) {
+            product.attributes.forEach(attr => {
+                if (!attributes[attr.attr_name]) attributes[attr.attr_name] = new Set();
+                attributes[attr.attr_name].add(attr.value);
+            });
+        }
+    });
+
+    let html = '';
+    Object.keys(attributes).forEach(key => {
+        html += `
+            <div class="mb-4">
+                <label class="form-label fw-bold text-light">${key}</label>
+                <div class="filter-group" data-attr="${key}">
+                    ${Array.from(attributes[key]).map(val => `
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="${val}" onchange="applyFilters()">
+                            <label class="form-check-label">${val}</label>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+    });
+
+    container.innerHTML = html || '<p class="text-muted">Для цієї підкатегорії фільтри поки відсутні</p>';
+}
+
+function applyFilters() {
+    const sortType = document.getElementById('sort-select').value;
+    const container = document.getElementById('products-container');
+    let cards = Array.from(container.getElementsByClassName('product-item'));
+
+    cards = cards.filter(card => {
+        let visible = true;
+        document.querySelectorAll('.filter-group').forEach(group => {
+            const checkedValues = Array.from(group.querySelectorAll('input:checked')).map(el => el.value);
+            if (checkedValues.length === 0) return;
+
+            const product = allProducts.find(p => String(p.id_product) === card.dataset.id);
+            if (!product || !product.attributes) {
+                visible = false;
+                return;
+            }
+
+            const attrName = group.dataset.attr;
+            const productValues = product.attributes
+                .filter(a => a.attr_name === attrName)
+                .map(a => a.value);
+
+            if (!checkedValues.some(v => productValues.includes(v))) {
+                visible = false;
+            }
+        });
+        return visible;
+    });
+
+    cards.sort((a, b) => {
+        if (sortType === 'price_asc') return parseFloat(a.dataset.price) - parseFloat(b.dataset.price);
+        if (sortType === 'price_desc') return parseFloat(b.dataset.price) - parseFloat(a.dataset.price);
+        if (sortType === 'name_asc') return a.dataset.name.localeCompare(b.dataset.name);
+        return parseInt(b.dataset.id) - parseInt(a.dataset.id); // новинки
+    });
+
+    container.innerHTML = '';
+    cards.forEach(card => container.appendChild(card));
+}
+
+function resetFilters() {
+    document.querySelectorAll('.filter-group input[type="checkbox"]').forEach(cb => cb.checked = false);
+    applyFilters();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderFilters();
+});
+</script>
+
+{% endblock %}

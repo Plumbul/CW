@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card p-4">
+                <h3 class="text-center mb-4 fw-bold">Реєстрація</h3>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }} alert-dismissible fade show">{{ message }}</div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                <form action="/register" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Повне ім'я <span class="text-danger">*</span></label>
+                        <input type="text" name="full_name" class="form-control" placeholder="Іванов Іван" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Телефон <span class="text-danger">*</span></label>
+                        <input type="tel" name="phone" class="form-control"
+                               placeholder="+380 XX XXX XX XX" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" name="email" class="form-control"
+                               placeholder="your@email.com" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Пароль <span class="text-danger">*</span></label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Місто</label>
+                        <input type="text" name="city" class="form-control" placeholder="Київ">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Адреса доставки</label>
+                        <textarea name="saved_address" class="form-control" rows="3"
+                                  placeholder="Вул. Хрещатик, 22, кв. 45"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-3 fw-bold">Зареєструватися</button>
+                </form>
+
+                <div class="text-center mt-4">
+                    <small class="text-muted">Вже маєте акаунт?
+                        <a href="{{ url_for('login') }}" class="text-primary fw-bold">Увійти</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

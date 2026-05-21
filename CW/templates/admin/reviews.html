@@ -1,0 +1,178 @@
+{% extends "admin/base_admin.html" %}
+{% block admin_content %}
+
+<div class="container-fluid px-0 mt-2">
+    <div class="card bg-dark border-secondary shadow-lg">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center py-3">
+            <h5 class="mb-0"> Модерація відгуків </h5>
+            <input type="text" id="review-search"
+                   class="form-control form-control-sm bg-dark text-white border-secondary w-50"
+                   placeholder="Пошук по товару або тексту...">
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead>
+                        <tr class="text-secondary">
+                            <th data-type="number">ID</th>
+                            <th>Товар</th>
+                            <th>Користувач</th>
+                            <th data-type="number">Оцінка</th>
+                            <th data-sortable="false">Відгук</th>
+                            <th data-type="date">Дата</th>
+                            <th data-type="status">Статус</th>
+                            <th data-sortable="false">Дії</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in reviews %}
+                        <tr data-id="{{ r.id_review }}"
+                            data-hidden="{{ r.is_hidden|default(0) }}"
+                            data-product="{{ r.product_name }}"
+                            data-username="{{ r.username or '—' }}"
+                            data-rating-stars="{{ '★' * r.rating }}"
+                            data-comment="{{ r.comment }}">
+                            <td><code>#{{ r.id_review }}</code></td>
+                            <td>{{ r.product_name }}</td>
+                            <td>{{ r.username or '—' }}</td>
+                            <td><span class="text-warning">{{ '★' * r.rating }}</span></td>
+                            <td style="max-width: 340px;">
+                                <small>"{{ r.comment[:85] }}{% if r.comment|length > 85 %}...{% endif %}"</small>
+                            </td>
+                            <td>{{ r.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                            <td>
+                                {% if r.is_hidden %}
+                                    <span class="badge bg-secondary">Приховано</span>
+                                {% else %}
+                                    <span class="badge bg-success">Активний</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button onclick="openReview({{ r.id_review }})"
+                                        class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i> Відкрити
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted">Відгуків поки немає.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-detail-panel" class="card bg-dark border-secondary shadow-lg mt-4 d-none">
+        <div class="card-header bg-secondary text-white d-flex justify-content-between">
+            <h6 class="mb-0">Робота з відгуком #<span id="detail-id"></span></h6>
+            <button onclick="closeReviewPanel()" class="btn btn-sm btn-outline-light">✕ Закрити</button>
+        </div>
+        <div class="card-body">
+            <h5 id="detail-product" class="mb-3"></h5>
+            <p><strong>Користувач:</strong> <span id="detail-username"></span></p>
+            <p><strong>Оцінка:</strong> <span id="detail-rating" class="text-warning fs-4"></span></p>
+
+            <blockquote id="detail-comment" class="border-start border-3 border-secondary ps-3 text-light"></blockquote>
+
+            <hr class="border-secondary my-4">
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Відповідь адміністратора</label>
+                <textarea id="admin-reply" class="form-control bg-dark text-light" rows="3" placeholder="Напишіть відповідь..."></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-warning fw-bold">Причина модерації</label>
+                <input type="text" id="moderation-note" class="form-control bg-dark text-light" placeholder="Причина...">
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <button onclick="saveAdminReply()" class="btn btn-success">💾 Зберегти відповідь</button>
+                <button onclick="hideReview()" id="hide-btn" class="btn btn-danger">Сховати відгук</button>
+                <button onclick="unhideReview()" id="unhide-btn" class="btn btn-warning d-none">Відновити відгук</button>
+                <button onclick="closeReviewPanel()" class="btn btn-secondary">Закрити</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentReviewId = null;
+
+function openReview(id) {
+    currentReviewId = id;
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    if (!row) return;
+
+    const isHidden = row.getAttribute('data-hidden') === '1';
+
+    document.getElementById('detail-id').textContent = id;
+    document.getElementById('detail-product').textContent = row.getAttribute('data-product');
+    document.getElementById('detail-username').textContent = row.getAttribute('data-username');
+    document.getElementById('detail-rating').innerHTML = row.getAttribute('data-rating-stars');
+    document.getElementById('detail-comment').textContent = row.getAttribute('data-comment');
+
+    document.getElementById('hide-btn').classList.toggle('d-none', isHidden);
+    document.getElementById('unhide-btn').classList.toggle('d-none', !isHidden);
+
+    document.getElementById('review-detail-panel').classList.remove('d-none');
+    document.getElementById('review-detail-panel').scrollIntoView({ behavior: "smooth" });
+}
+
+function closeReviewPanel() {
+    document.getElementById('review-detail-panel').classList.add('d-none');
+}
+
+function saveAdminReply() {
+    const reply = document.getElementById('admin-reply').value.trim();
+    if (!currentReviewId) return;
+
+    fetch(`/admin/review/${currentReviewId}/reply`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ admin_reply: reply })
+    }).then(r => r.json()).then(data => {
+        if (data.success) alert('Відповідь адміністратора збережена!');
+    });
+}
+
+function hideReview() {
+    const note = document.getElementById('moderation-note').value.trim();
+    if (!note) return alert("Вкажіть причину приховування!");
+
+    if (!confirm("Сховати цей відгук?")) return;
+
+    fetch(`/admin/review/${currentReviewId}/hide`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ moderation_note: note })
+    }).then(r => r.json()).then(data => {
+        if (data.success) location.reload();
+    });
+}
+
+function unhideReview() {
+    if (!confirm("Відновити цей відгук і зробити його видимим?")) return;
+
+    fetch(`/admin/review/${currentReviewId}/unhide`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) location.reload();
+    });
+}
+
+document.getElementById('review-search').addEventListener('input', function() {
+    const term = this.value.toLowerCase();
+    document.querySelectorAll('.table tbody tr').forEach(row => {
+        if(row.cells.length > 1) {
+            row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+        }
+    });
+});
+</script>
+
+{% endblock %}

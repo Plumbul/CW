@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-dark"><i class="bi bi-shield-lock"></i> Панель адміністратора</h2>
+        <a href="/" class="btn btn-outline-secondary btn-sm">На головну</a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 rounded-3 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Додати новий товар</h5>
+                    <form action="/admin" method="POST">
+                        <div class="mb-2">
+                            <input type="text" name="name" class="form-control" placeholder="Назва товару" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="number" name="price" class="form-control" placeholder="Ціна (грн)" required>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="category" class="form-control" placeholder="Категорія">
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" name="image_url" class="form-control" placeholder="URL картинки">
+                        </div>
+                        <div class="mb-3">
+                            <textarea name="description" class="form-control" placeholder="Опис" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Зберегти товар</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 rounded-3">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Список товар MyStore</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Назва</th>
+                                    <th>Ціна</th>
+                                    <th>Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td>{{ product.id }}</td>
+                                    <td>{{ product.name }}</td>
+                                    <td>{{ product.price }} грн</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

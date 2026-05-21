@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <h2 class="fw-bold mb-4">Про магазин Shop</h2>
+            <p class="lead">Магазин з продажу якісних товарів.</p>
+            <p>Наша мета — зробити процес онлайн-покупок максимально простим та приємним для кожного клієнта. Ми ретельно відбираємо кожен товар у нашому каталозі.</p>
+            <div class="mt-4">
+                <a href="/catalog" class="btn btn-primary px-4">Перейти до каталогу</a>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <img src="{{ url_for('static', filename='images/logo.jpg') }}" class="img-fluid rounded shadow" alt="Про нас">
+        </div>
+    </div>
+</div>
+{% endblock %}

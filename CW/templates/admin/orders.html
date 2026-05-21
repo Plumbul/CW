@@ -1,0 +1,140 @@
+{% extends "admin/base_admin.html" %}
+{% block admin_content %}
+<div class="container-fluid px-0 mt-2">
+    <div class="card bg-dark border-secondary shadow-lg">
+        <div class="card-header bg-danger text-white d-flex flex-column flex-sm-row justify-content-between align-items-sm-center py-3 gap-2">
+            <h5 class="mb-0"> Керування замовленнями </h5>
+
+            <div class="d-flex gap-2">
+                <select id="sort-select" class="form-select form-select-sm bg-dark text-white border-secondary" style="width: auto;">
+                    <option value="date_desc" {% if current_sort == 'date_desc' %}selected{% endif %}>Найновіші</option>
+                    <option value="date_asc" {% if current_sort == 'date_asc' %}selected{% endif %}>Найстаріші</option>
+                    <option value="id_desc" {% if current_sort == 'id_desc' %}selected{% endif %}>За номером ↓</option>
+                    <option value="client_asc" {% if current_sort == 'client_asc' %}selected{% endif %}>Клієнт А-Я</option>
+                    <option value="amount_desc" {% if current_sort == 'amount_desc' %}selected{% endif %}>Сума ↓</option>
+                </select>
+
+                <div class="position-relative" style="width: 280px;">
+                    <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" id="table-search" class="form-control form-control-sm bg-dark text-white border-secondary ps-5"
+                           placeholder="Пошук...">
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0 align-middle" id="orders-table">
+<thead>
+    <tr class="text-secondary">
+        <th data-type="number">№</th>
+        <th data-type="date">Дата</th>
+        <th>Клієнт</th>
+        <th data-type="number">Товарів</th>
+        <th data-type="amount">Сума</th>
+        <th data-type="status">Статус</th>
+        <th class="text-center" data-sortable="false" style="width: 340px;">Дії</th>
+    </tr>
+</thead>
+                    <tbody>
+                        {% for o in orders %}
+                        <tr class="order-row" data-order-id="{{ o.id_order }}">
+                            <td><code>#{{ o.id_order }}</code></td>
+                            <td><small>{{ o.order_date.strftime('%d.%m.%Y %H:%M') if o.order_date else '—' }}</small></td>
+                            <td><strong>{{ o.full_name }}</strong></td>
+                            <td><span class="badge bg-secondary">{{ o.items_count or 0 }}</span></td>
+                            <td class="text-info fw-bold">{{ "{:,.2f}".format(o.total_amount or 0) }} грн</td>
+
+                            <td class="status-cell">
+                                {% if o.status == 'Виконано' %}
+                                    <span class="badge bg-success">Виконано</span>
+                                {% elif o.status == 'В обробці' %}
+                                    <span class="badge bg-warning text-dark">В обробці</span>
+                                {% else %}
+                                    <span class="badge bg-primary">Підтверджено</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    {% if o.status == 'Підтверджено' %}
+                                        <button onclick="changeStatus({{ o.id_order }}, 'В обробці')"
+                                                class="btn btn-outline-warning">
+                                            <i class="bi bi-play-circle"></i> В обробку
+                                        </button>
+                                    {% endif %}
+
+                                    <button onclick="editOrder({{ o.id_order }})"
+                                            class="btn btn-outline-info">
+                                        <i class="bi bi-pencil-square"></i> Товари
+                                    </button>
+
+                                    {% if o.status != 'Виконано' %}
+                                        <button onclick="changeStatus({{ o.id_order }}, 'Виконано')"
+                                                class="btn btn-outline-success">
+                                            <i class="bi bi-check-circle"></i> Виконати
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-center py-5 text-muted">Замовлень немає</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальне вікно -->
+<div class="modal fade" id="orderEditModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Замовлення #<span id="modal-order-id"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modal-order-items"></div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('table-search').addEventListener('input', function() {
+    const filter = this.value.toLowerCase();
+    document.querySelectorAll('#orders-table tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(filter) ? '' : 'none';
+    });
+});
+
+document.getElementById('sort-select').addEventListener('change', function() {
+    window.location.href = `/admin/orders?sort=${this.value}`;
+});
+
+function changeStatus(orderId, status) {
+    if (!confirm(`Змінити статус замовлення #${orderId} на "${status}"?`)) return;
+    fetch(`/admin/orders/update/${orderId}/${encodeURIComponent(status)}`)
+        .then(() => location.reload());
+}
+
+function editOrder(orderId) {
+    fetch(`/admin/order/${orderId}/items`)
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('modal-order-items').innerHTML = html;
+            document.getElementById('modal-order-id').textContent = orderId;
+            new bootstrap.Modal(document.getElementById('orderEditModal')).show();
+        })
+        .catch(() => {
+            document.getElementById('modal-order-items').innerHTML = `<p class="text-danger">Помилка завантаження.</p>`;
+        });
+}
+</script>
+{% endblock %}

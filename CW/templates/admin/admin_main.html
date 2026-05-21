@@ -1,0 +1,183 @@
+{% extends "admin/base_admin.html" %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="display-5 fw-bold mb-1 text-white">Дашборд Shop</h1>
+        <p class="text-muted">Актуальна статистика на сьогодні</p>
+    </div>
+    <button onclick="refreshDashboard()" class="btn btn-outline-light">
+        <i class="bi bi-arrow-clockwise"></i> Оновити
+    </button>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="card h-100 bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h2 class="fw-bold text-success mb-1">{{ stats.orders_count }}</h2>
+                <p class="text-muted mb-0">Замовлень сьогодні</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h2 class="fw-bold mb-1">{{ "{:,.0f}".format(stats.total_revenue or 0) }} ₴</h2>
+                <p class="text-muted mb-0">Загальний виторг</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h2 class="fw-bold text-warning mb-1">{{ stats.users_count }}</h2>
+                <p class="text-muted mb-0">Нових користувачів</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100 bg-dark border-secondary text-center">
+            <div class="card-body">
+                <h2 class="fw-bold text-info mb-1">{{ stats.products_count }}</h2>
+                <p class="text-muted mb-0">Усього товарів</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card h-100 bg-dark border-secondary">
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title mb-4">Продані товари за категоріями</h5>
+                {% if stats.category_stats and stats.category_stats|length > 0 %}
+                    <div class="chart-container flex-grow-1">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                {% else %}
+                    <div class="text-center my-auto py-5">
+                        <p class="text-muted mb-0">Немає даних для відображення</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card h-100 bg-dark border-secondary">
+            <div class="card-body">
+                <h5 class="card-title mb-4">Останні замовлення</h5>
+                {% if recent_orders %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Покупець</th>
+                                <th>Дата</th>
+                                <th>Сума</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for order in recent_orders %}
+                            <tr>
+                                <td class="fw-bold">#{{ order.id_order }}</td>
+                                <td>{{ order.user_name }}</td>
+                                <td>{{ order.order_date.strftime('%d.%m.%Y %H:%M') if order.order_date else '-' }}</td>
+                                <td>{{ "{:,.2f}".format(order.total_amount) }} ₴</td>
+<td>
+    {% if order.status == 'Виконано' %}
+        <span class="badge bg-success">Виконано</span>
+    {% elif order.status == 'В обробці' %}
+        <span class="badge bg-info">В обробці</span>
+    {% else %}
+        <span class="badge bg-warning text-dark">Підтверджено</span>
+    {% endif %}
+</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <p class="text-muted text-center py-5">Поки немає продажів</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_scripts %}
+<script>
+window.categoryChartInstance = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('categoryChart');
+    if (!ctx) return;
+
+    {% if stats.category_stats and stats.category_stats|length > 0 %}
+    const labels = [];
+    const data = [];
+    const colors = ['#ef4444', '#3b82f6', '#22c55e', '#8b5cf6', '#f59e0b', '#ec4899', '#14b8a6', '#6366f1'];
+
+    {% for cat in stats.category_stats %}
+        labels.push("{{ cat.category_name }}");
+        data.push({{ cat.product_count }});
+    {% endfor %}
+
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const initTextColor = (savedTheme === 'light') ? '#1f2937' : '#ffffff';
+    const initBorderColor = (savedTheme === 'light') ? '#ffffff' : '#111111';
+
+    window.categoryChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: initBorderColor,
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: initTextColor,
+                        font: {
+                            family: "'Inter', system-ui, sans-serif",
+                            size: 12
+                        },
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 15, 15, 0.95)',
+                    titleColor: '#ffffff',
+                    bodyColor: '#ffffff',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    padding: 10,
+                    bodyFont: {
+                        family: "'Inter', system-ui, sans-serif"
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+
+function refreshDashboard() {
+    window.location.reload();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,212 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="bi bi-cart3"></i> Ваш кошик</h2>
+        <a href="{{ url_for('catalog') }}" class="btn btn-outline-light">Повернутися до покупок</a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div id="cart-items-list">
+                </div>
+        </div>
+
+        <div class="col-md-4">
+            <div id="cart-summary" class="card shadow-sm border-0 p-4 position-sticky" style="top: 20px;">
+                <h4 class="fw-bold mb-3">Підсумок</h4>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Товари:</span>
+                    <span id="cart-total-raw" class="fw-bold">0 грн</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Доставка:</span>
+                    <span class="text-success small">За тарифами перевізника</span>
+                </div>
+                <hr>
+
+                <div class="d-flex justify-content-between mb-4">
+                    <span class="fs-5 fw-bold">До сплати:</span>
+                    <span id="cart-total-final" class="fw-bold fs-4 text-primary">0 грн</span>
+                </div>
+
+                <a href="{{ url_for('checkout') }}" class="btn btn-primary w-100 py-3 rounded-pill fw-bold text-uppercase shadow-sm">
+                    💳 Оформити замовлення
+                </a>
+
+                {% if not session.get('user_id') %}
+                <div class="text-center mt-3">
+                    <p class="small text-muted mb-0">Вже купували у нас?</p>
+                    <a href="{{ url_for('login') }}" class="small fw-bold text-decoration-none">Увійдіть в кабінет</a>
+                </div>
+                {% endif %}
+
+                <div class="mt-4 p-3 bg-opacity-10 border rounded-4">
+                    <small>
+                        <i class="bi bi-shield-check"></i>
+                        Ваші дані захищені. Оплата карткою або при отриманні.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function renderCart() {
+    let cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const container = document.getElementById('cart-items-list');
+
+    if (!container) return;
+
+    if (cart.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="bi bi-cart-x" style="font-size: 4rem; opacity: 0.3;"></i>
+                <h4 class="mt-3 text-muted">Ваш кошик порожній</h4>
+                <a href="/catalog" class="btn btn-primary mt-3 rounded-pill px-4">Перейти до покупок</a>
+            </div>`;
+        updateSummary(0);
+        return;
+    }
+
+    let html = '';
+    let total = 0;
+
+    cart.forEach((item, index) => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+
+        let imgSrc = '';
+        if (item.image && item.image.trim() !== '') {
+            imgSrc = item.image.startsWith('/static') ? item.image : `/static/images/products/${item.image}`;
+        }
+
+        let imageHtml = '';
+        if (imgSrc) {
+            imageHtml = `<img src="${imgSrc}" class="img-fluid rounded border" style="width: 90px; height: 90px; object-fit: cover;" alt="${item.name}"
+                onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'bg-dark bg-opacity-10 text-muted rounded d-flex align-items-center justify-content-center border\' style=\'width: 90px; height: 90px;\'><i class=\'bi bi-image\' style=\'font-size: 1.5rem;\'><\\/i><\\/div>';">`;
+        } else {
+            imageHtml = `<div class="bg-dark bg-opacity-10 text-muted rounded d-flex align-items-center justify-content-center border" style="width: 90px; height: 90px;"><i class="bi bi-image" style="font-size: 1.5rem;"></i></div>`;
+        }
+
+        // Базовий каркас картки без жорстких класів фону (класи додасть функція applyThemeColors)
+        html += `
+            <div class="card cart-product-card shadow-sm border-0 rounded-4 p-3 mb-3">
+                <div class="row align-items-center g-3">
+                    <div class="col-3 col-sm-2 text-center">
+                        ${imageHtml}
+                    </div>
+
+                    <div class="col-9 col-sm-4">
+                        <h5 class="fw-bold mb-1 text-truncate item-name">${item.name}</h5>
+                        <p class="text-primary fw-bold mb-0">${item.price.toLocaleString('uk-UA')} грн</p>
+                    </div>
+
+                    <div class="col-6 col-sm-3">
+                        <div class="input-group input-group-sm" style="max-width: 110px;">
+                            <button class="btn btn-outline-secondary rounded-start-pill" onclick="updateQty(${index}, -1)">-</button>
+                            <input type="text" class="form-control text-center bg-transparent border-secondary fw-bold item-quantity-input" value="${item.quantity}" readonly>
+                            <button class="btn btn-outline-secondary rounded-end-pill" onclick="updateQty(${index}, 1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-sm-3 text-end d-flex align-items-center justify-content-end gap-3">
+                        <span class="fw-bold fs-5 text-success">${itemTotal.toLocaleString('uk-UA')} грн</span>
+                        <button class="btn btn-link text-danger p-0" onclick="removeItem(${index})" title="Видалити">
+                            <i class="bi bi-trash3-fill fs-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+    });
+
+    container.innerHTML = html;
+    updateSummary(total);
+    applyThemeColors();
+}
+
+    window.updateQty = function(index, delta) {
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        if (!cart[index]) return;
+
+        cart[index].quantity += delta;
+        if (cart[index].quantity < 1) {
+            removeItem(index);
+        } else {
+            localStorage.setItem('cart', JSON.stringify(cart));
+            renderCart();
+        }
+    }
+
+    window.removeItem = function(index) {
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        cart.splice(index, 1);
+        localStorage.setItem('cart', JSON.stringify(cart));
+        renderCart();
+    }
+
+    function updateSummary(total) {
+        document.getElementById('cart-total-raw').innerText = total.toLocaleString('uk-UA') + " грн";
+        document.getElementById('cart-total-final').innerText = total.toLocaleString('uk-UA') + " грн";
+    }
+
+    function applyThemeColors() {
+        const isLightMode = document.body.classList.contains('light-mode');
+
+        const summaryCard = document.getElementById('cart-summary');
+        if (summaryCard) {
+            if (isLightMode) {
+                summaryCard.classList.remove('bg-dark', 'text-white');
+                summaryCard.classList.add('bg-light', 'text-dark');
+            } else {
+                summaryCard.classList.remove('bg-light', 'text-dark');
+                summaryCard.classList.add('bg-dark', 'text-white');
+            }
+        }
+
+        const productCards = document.querySelectorAll('.cart-product-card');
+        productCards.forEach(card => {
+            const quantityInput = card.querySelector('.item-quantity-input');
+            const itemName = card.querySelector('.item-name');
+
+            if (isLightMode) {
+                card.classList.remove('bg-dark', 'bg-opacity-10', 'text-white');
+                card.classList.add('bg-light', 'text-dark');
+
+                if (itemName) {
+                    itemName.classList.remove('text-white');
+                    itemName.classList.add('text-dark');
+                }
+                if (quantityInput) {
+                    quantityInput.classList.remove('text-white');
+                    quantityInput.classList.add('text-dark');
+                }
+            } else {
+                // Налаштування для темної теми
+                card.classList.remove('bg-light', 'text-dark');
+                card.classList.add('bg-dark', 'bg-opacity-10', 'text-white');
+
+                if (itemName) {
+                    itemName.classList.remove('text-dark');
+                    itemName.classList.add('text-white');
+                }
+                if (quantityInput) {
+                    quantityInput.classList.remove('text-dark');
+                    quantityInput.classList.add('text-white');
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderCart();
+
+        const observer = new MutationObserver(() => {
+            applyThemeColors();
+        });
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    });
+</script>
+{% endblock %}

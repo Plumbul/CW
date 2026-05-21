@@ -1,0 +1,121 @@
+/* ====================== АДМІНКА — DARK THEME ====================== */
+.admin-body {
+    background: #0a0a0a;
+    color: #ffffff;
+}
+
+.sidebar-nav {
+    background: #0f0f0f;
+    min-height: 100vh;
+    border-right: 1px solid #222222;
+}
+
+.nav-link {
+    color: #bbbbbb;
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background: #1f1f1f;
+    color: #ffffff;
+    border-left: 4px solid #ef4444;
+}
+
+.card {
+    background-color: #111111;
+    border: 1px solid #222222;
+    border-radius: 12px;
+    color: #ffffff;
+}
+
+/* ====================== ТАБЛИЦІ ====================== */
+.table {
+    --bs-table-bg: #111111;
+    --bs-table-color: #ffffff;
+    --bs-table-border-color: #222222;
+    --bs-table-hover-bg: #1a1a1a;
+}
+
+.table thead {
+    background-color: #1a1a1a;
+}
+
+/* ====================== LIGHT MODE ====================== */
+body.light-mode {
+    background: #f8fafc !important;
+    color: #1f2937 !important;
+}
+
+body.light-mode .sidebar-nav {
+    background: #ffffff !important;
+    border-right: 1px solid #e2e8f0;
+}
+
+body.light-mode .nav-link {
+    color: #64748b;
+}
+
+body.light-mode .nav-link:hover,
+body.light-mode .nav-link.active {
+    background: #f1f5f9;
+    color: #1f2937;
+}
+
+body.light-mode .card,
+body.light-mode .bg-dark {
+    background-color: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    color: #1f2937 !important;
+}
+
+body.light-mode .table {
+    --bs-table-bg: #ffffff !important;
+    --bs-table-color: #1f2937 !important;
+    --bs-table-border-color: #e2e8f0 !important;
+}
+
+/* Важливі ресети для темної теми */
+body:not(.light-mode) .text-white,
+body:not(.light-mode) .text-light,
+body:not(.light-mode) h1,
+body:not(.light-mode) h2,
+body:not(.light-mode) h3,
+body:not(.light-mode) h4,
+body:not(.light-mode) h5,
+body:not(.light-mode) .text-muted:not(.light-mode *) {
+    color: #ffffff !important;
+}
+
+body:not(.light-mode) .text-muted {
+    color: #aaaaaa !important;
+}
+
+/* Форми */
+body.light-mode .form-control,
+body.light-mode .form-select {
+    background-color: #ffffff;
+    color: #1f2937;
+    border-color: #cbd5e1;
+}
+
+/* Chart.js */
+body.light-mode .chart-container {
+    color: #1f2937;
+}
+
+th.sorted-asc::after {
+    content: " ↑";
+    color: #22c55e;
+}
+
+th.sorted-desc::after {
+    content: " ↓";
+    color: #ef4444;
+}
+
+th:hover {
+    background-color: #1a1a1a !important;
+    color: white;
+}

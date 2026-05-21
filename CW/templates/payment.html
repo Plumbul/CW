@@ -1,0 +1,44 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5" style="max-width: 520px;">
+    <div class="card border-0 shadow rounded-4 overflow-hidden">
+        <div class="bg-primary p-4 text-white text-center">
+            <h4>Оплата замовлення <span class="text-danger fw-bold">#{{ order_no }}</span></h4>
+        </div>
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between mb-4">
+                <span class="text-muted">До сплати:</span>
+                <span class="fw-bold fs-4 text-primary">
+                    {{ "{:,.2f}".format(total_amount) }} грн
+                </span>
+            </div>
+
+            <button onclick="simulatePayment()" class="btn btn-success btn-lg w-100 py-3 rounded-pill fw-bold mb-3">
+                Оплатити карткою
+            </button>
+
+            <a href="{{ url_for('order_complete', order_no=order_no, status='success') }}"
+               class="btn btn-outline-light w-100 py-3 rounded-pill">
+                Оплатити при отриманні
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function simulatePayment() {
+    window.location.href = "{{ url_for('order_complete', order_no=order_no, status='success') }}";
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('clear_cart') === '1') {
+        localStorage.removeItem('cart');
+
+        if (typeof updateBadges === "function") {
+            updateBadges();
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends "admin/base_admin.html" %}
+
+{% block admin_content %}
+<div class="container-fluid px-0 mt-2">
+    <div class="row g-3">
+        <div class="col-xl-7 col-lg-6 mb-4">
+            <div class="card bg-dark border-secondary shadow-lg h-100">
+                <div class="card-header bg-danger text-white py-3">
+                    <h5 class="mb-0"> Діючі Акції </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+<thead>
+    <tr>
+        <th data-type="number" style="width: 70px;">ID</th>
+        <th>Назва акції</th>
+        <th data-type="number">Знижка</th>
+        <th data-type="date">Термін дії</th>
+        <th>Опис</th>
+        <th class="text-center" data-sortable="false" style="width: 100px;">Дії</th>
+    </tr>
+</thead>
+                            <tbody>
+                                {% for p in promos %}
+                                <tr>
+                                    <td><code>#{{ p.id_promotion }}</code></td>
+                                    <td><strong class="text-white">{{ p.name }}</strong></td>
+                                    <td><span class="badge bg-danger">-{{ p.discount_percent }}%</span></td>
+                                    <td>
+                                        <small class="text-info d-block">З: {{ p.start_date|default('—') }}</small>
+                                        <small class="text-warning d-block">По: {{ p.end_date|default('—') }}</small>
+                                    </td>
+                                    <td><small class="text-muted d-inline-block text-truncate" style="max-width: 200px;">{{ p.description }}</small></td>
+                                    <td class="text-center">
+                                        <div class="btn-group">
+                                            <button onclick="editPromotion({{ p|tojson | replace('</', '<\\\\/') }})"
+                                                    class="btn btn-sm btn-outline-warning" title="Редагувати">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <a href="{{ url_for('delete_promotion', id=p.id_promotion) }}"
+                                               class="btn btn-sm btn-outline-danger"
+                                               onclick="return confirm('Видалити акцію «{{ p.name }}»?')" title="Видалити">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">Акцій поки немає. Створіть першу акцію справа!</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5 col-lg-6">
+            <div class="card bg-dark border-secondary shadow-lg sticky-top" style="top: 20px;">
+                <div class="card-header bg-danger text-white py-3">
+                    <h5 class="mb-0" id="form-title"><i class="bi bi-plus-square"></i> Створити нову акцію</h5>
+                </div>
+                <div class="card-body shadow">
+                    <form id="promotion-form" method="POST" action="{{ url_for('admin_promotions') }}">
+                        <input type="hidden" name="id_promotion" id="id_promotion">
+
+                        <div class="mb-3">
+                            <label class="form-label text-light">Назва акції</label>
+                            <input type="text" name="name" id="name" class="form-control bg-dark text-white border-secondary"
+                                   required placeholder="Наприклад: Великодній розпродаж">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-light">Відсоток знижки (%)</label>
+                            <input type="number" name="discount" id="discount" class="form-control bg-dark text-white border-secondary"
+                                   min="1" max="100" required placeholder="Наприклад: 15">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label text-light">Дата початку</label>
+                                <input type="date" name="start_date" id="start_date" class="form-control bg-dark text-white border-secondary" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-light">Дата закінчення</label>
+                                <input type="date" name="end_date" id="end_date" class="form-control bg-dark text-white border-secondary" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label text-light">Опис акції</label>
+                            <textarea name="description" id="description" class="form-control bg-dark text-white border-secondary"
+                                      rows="4" required placeholder="Детально розпишіть умови акції..."></textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-light w-25" onclick="resetForm()">Скинути</button>
+                            <button type="submit" id="submit-btn" class="btn btn-danger w-75 py-2 fw-bold shadow">
+                                Опублікувати акцію
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editPromotion(p) {
+    resetForm();
+
+    document.getElementById('form-title').innerHTML = '<i class="bi bi-pencil-square"></i> Редагувати акцію';
+    document.getElementById('id_promotion').value = p.id_promotion;
+    document.getElementById('name').value = p.name || '';
+    document.getElementById('discount').value = p.discount_percent || '';
+    document.getElementById('description').value = p.description || '';
+
+    if (p.start_date) {
+        document.getElementById('start_date').value = formatDateForInput(p.start_date);
+    }
+    if (p.end_date) {
+        document.getElementById('end_date').value = formatDateForInput(p.end_date);
+    }
+
+    document.getElementById('submit-btn').textContent = 'Зберегти зміни';
+
+    document.getElementById('submit-btn').className = 'btn btn-danger w-75 py-2 fw-bold shadow';
+
+    document.getElementById('promotion-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetForm() {
+    document.getElementById('promotion-form').reset();
+    document.getElementById('id_promotion').value = '';
+    document.getElementById('form-title').innerHTML = '<i class="bi bi-plus-square"></i> Створити нову акцію';
+    document.getElementById('submit-btn').textContent = 'Опублікувати акцію';
+    document.getElementById('submit-btn').className = 'btn btn-danger w-75 py-2 fw-bold shadow';
+}
+
+function formatDateForInput(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+        return dateStr.split(' ')[0];
+    }
+    const month = '' + (d.getMonth() + 1);
+    const day = '' + d.getDate();
+    const year = d.getFullYear();
+
+    return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
+}
+</script>
+{% endblock %}

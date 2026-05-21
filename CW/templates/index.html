@@ -1,0 +1,218 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div id="promoCarousel" class="carousel slide mb-5" data-bs-ride="carousel">
+    <div class="carousel-inner">
+        {% for promo in promos %}
+        <div class="carousel-item {% if loop.first %}active{% endif %}">
+            <div class="p-5 rounded-4 text-center text-lg-start"
+                 style="background: linear-gradient(135deg, #1a1a1a, #000); min-height: 340px; display: flex; align-items: center;">
+                <div class="container">
+                    <div class="row align-items-center">
+                        <div class="col-lg-7">
+                            <h1 class="display-4 fw-bold text-white">{{ promo.name }}</h1>
+                            <p class="lead mb-4 text-white">{{ promo.description or 'До -40% на весь асортимент техніки' }}</p>
+                            <a href="{{ url_for('promotions') }}" class="btn btn-danger btn-lg">Переглянути акцію</a>
+                        </div>
+                        <div class="col-lg-5 text-center">
+                            <h2 class="display-1 fw-bold text-danger mb-0">{{ promo.discount_percent }}%</h2>
+                            <small class="text-light">ЗНИЖКА</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <button class="carousel-control-prev" type="button" data-bs-target="#promoCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#promoCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon"></span>
+    </button>
+</div>
+
+<div class="container">
+    <h3 class="fw-bold mb-4 text-white">Популярні товари</h3>
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+        {% for product in products %}
+        <div class="col">
+            <div class="card h-100 shadow-sm border-0 rounded-4 position-relative overflow-hidden product-card bg-dark text-white">
+
+                {% set prod_img = product.images[0].filename if product.images and product.images[0] else '' %}
+
+                <button class="btn btn-light position-absolute top-2 end-2 rounded-circle shadow-sm fav-btn"
+                        style="width: 45px; height: 45px; padding: 0; z-index: 10;"
+                        data-id="{{ product.id_product }}"
+                        data-name="{{ product.name|e }}"
+                        data-price="{{ product.base_price }}"
+                        data-image="{{ prod_img }}"
+                        onclick="handleFavoriteClick(this)">
+                    <i class="bi bi-heart text-danger fs-5"></i>
+                </button>
+
+                {% if product.images and product.images[0] %}
+                <img src="{{ url_for('static', filename='images/products/' ~ product.images[0].filename) }}"
+                     class="card-img-top"
+                     alt="{{ product.name }}"
+                     style="height: 200px; object-fit: cover;">
+                {% else %}
+                <img src="https://via.placeholder.com/300x200/1a1a1a/666?text=Немає+фото"
+                     class="card-img-top rounded-top"
+                     alt="{{ product.name }}"
+                     style="height: 200px; object-fit: cover;">
+                {% endif %}
+
+                <div class="card-body d-flex flex-column p-3">
+                    <h5 class="card-title mb-3">
+                        <a href="{{ url_for('product_page', pid=product.id_product) }}" class="text-decoration-none text-white fw-bold">
+                            {{ product.name }}
+                        </a>
+                    </h5>
+
+                    {% if product.avg_rating %}
+                    <div class="mb-2">
+                        <span class="text-warning">
+                            ★ {{ product.avg_rating|round(1) }}
+                        </span>
+                        <small class="text-muted">({{ product.review_count or 0 }})</small>
+                    </div>
+                    {% endif %}
+
+                    <p class="text-primary fw-bold mb-3 fs-5 mt-auto">{{ product.base_price|int }} грн</p>
+
+                    <button class="btn btn-primary w-100"
+                            data-id="{{ product.id_product }}"
+                            data-name="{{ product.name|e }}"
+                            data-price="{{ product.base_price }}"
+                            data-image="{{ prod_img }}"
+                            onclick="handleCartClick(this)">
+                        🛒 До кошика
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function showToast(message, type = 'success') {
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.position = 'fixed';
+        toastContainer.style.bottom = '20px';
+        toastContainer.style.right = '20px';
+        toastContainer.style.zIndex = '9999';
+        document.body.appendChild(toastContainer);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0 shadow`;
+    toast.style.minWidth = '280px';
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body fw-medium">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    data-bs-dismiss="toast"></button>
+        </div>
+    `;
+
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 2500 });
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function handleCartClick(button) {
+    const id = button.getAttribute('data-id');
+    const name = button.getAttribute('data-name');
+    const price = parseFloat(button.getAttribute('data-price'));
+    const image = button.getAttribute('data-image') || '';
+
+    let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+    const existing = cart.findIndex(item => item.id == id);
+
+    if (existing > -1) {
+        cart[existing].quantity = (cart[existing].quantity || 1) + 1;
+        showToast(`Кількість «${name}» збільшено ✓`);
+    } else {
+        cart.push({
+            id,
+            name,
+            price,
+            image,
+            quantity: 1
+        });
+        showToast(`«${name}» додано до кошика ✓`);
+    }
+
+    localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartCount();
+}
+
+function handleFavoriteClick(button) {
+    const id = button.getAttribute('data-id');
+    const name = button.getAttribute('data-name');
+    const price = parseFloat(button.getAttribute('data-price'));
+    const image = button.getAttribute('data-image') || '';
+
+    let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    const index = favorites.findIndex(item => item.id == id);
+
+    const icon = button.querySelector('i');
+
+    if (index > -1) {
+        favorites.splice(index, 1);
+        icon.classList.remove('bi-heart-fill');
+        icon.classList.add('bi-heart');
+        showToast('Видалено з улюблених');
+    } else {
+        favorites.push({ id, name, price, image });
+        icon.classList.remove('bi-heart');
+        icon.classList.add('bi-heart-fill');
+        showToast('Додано до улюблених ❤️');
+    }
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+    updateFavCount();
+}
+
+function updateCartCount() {
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const total = cart.reduce((sum, item) => sum + (parseInt(item.quantity) || 1), 0);
+
+    const cartCountEl = document.getElementById('cart-count');
+    if (cartCountEl) {
+        cartCountEl.textContent = total;
+        cartCountEl.style.display = total > 0 ? 'inline-block' : 'none';
+    }
+}
+
+function updateFavCount() {
+    const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    const favCountEl = document.getElementById('fav-count');
+    if (favCountEl) {
+        favCountEl.textContent = favorites.length;
+        favCountEl.style.display = favorites.length > 0 ? 'inline-block' : 'none';
+    }
+}
+
+window.updateCartCount = updateCartCount;
+window.updateFavCount = updateFavCount;
+
+document.addEventListener('DOMContentLoaded', () => {
+    updateCartCount();
+    updateFavCount();
+
+    window.addEventListener('focus', () => {
+        updateCartCount();
+        updateFavCount();
+    });
+});
+</script>
+
+{% endblock %}

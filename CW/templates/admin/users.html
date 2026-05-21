@@ -1,0 +1,200 @@
+{% extends "admin/base_admin.html" %}
+{% block admin_content %}
+<div class="container-fluid px-0 mt-2">
+    <div class="row g-4">
+
+        <div class="col-xl-7">
+            <div class="card bg-dark border-secondary shadow-lg">
+                <div class="card-header bg-danger text-white d-flex flex-column flex-sm-row justify-content-between align-items-sm-center py-3 gap-2">
+                    <h5 class="mb-0">Користувачі </h5>
+
+                    <div class="position-relative" style="max-width: 250px; width: 100%;">
+                        <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="user-search" class="form-control form-control-sm bg-dark text-white border-secondary ps-5"
+                               placeholder="Пошук за будь-яким параметром...">
+                    </div>
+                </div>
+
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead>
+                                <tr class="text-secondary">
+                                    <th style="width: 70px;">
+                                        <a href="{{ url_for('admin_users', sort='id_asc' if current_sort == 'id_desc' else 'id_desc') }}" class="text-decoration-none text-reset d-flex align-items-center gap-1">
+                                            ID
+                                            {% if current_sort == 'id_asc' %}<i class="bi bi-sort-numeric-up text-danger"></i>
+                                            {% elif current_sort == 'id_desc' %}<i class="bi bi-sort-numeric-down text-danger"></i>
+                                            {% else %}<i class="bi bi-arrow-down-up text-muted small"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="{{ url_for('admin_users', sort='name_asc' if current_sort == 'name_desc' else 'name_desc') }}" class="text-decoration-none text-reset d-flex align-items-center gap-1">
+                                            Повне ім'я
+                                            {% if current_sort == 'name_asc' %}<i class="bi bi-sort-alpha-down text-danger"></i>
+                                            {% elif current_sort == 'name_desc' %}<i class="bi bi-sort-alpha-up text-danger"></i>
+                                            {% else %}<i class="bi bi-arrow-down-up text-muted small"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="{{ url_for('admin_users', sort='email_asc' if current_sort == 'email_desc' else 'email_desc') }}" class="text-decoration-none text-reset d-flex align-items-center gap-1">
+                                            Email
+                                            {% if current_sort == 'email_asc' %}<i class="bi bi-sort-alpha-down text-danger"></i>
+                                            {% elif current_sort == 'email_desc' %}<i class="bi bi-sort-alpha-up text-danger"></i>
+                                            {% else %}<i class="bi bi-arrow-down-up text-muted small"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 100px;">
+                                        <a href="{{ url_for('admin_users', sort='role_asc' if current_sort == 'role_desc' else 'role_desc') }}" class="text-decoration-none text-reset d-flex align-items-center gap-1">
+                                            Роль
+                                            {% if current_sort == 'role_asc' %}<i class="bi bi-shield text-danger"></i>
+                                            {% elif current_sort == 'role_desc' %}<i class="bi bi-shield-fill text-danger"></i>
+                                            {% else %}<i class="bi bi-arrow-down-up text-muted small"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    <th style="width: 50px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in users %}
+                                <tr class="user-row {% if selected_user and selected_user.id_user == u.id_user %}table-active border-start border-3 border-danger{% endif %}" style="cursor: pointer;" onclick="window.location='?user_id={{ u.id_user }}&sort={{ current_sort }}'">
+                                    <td><code>#{{ u.id_user }}</code></td>
+                                    <td>
+                                        <strong class="text-white">{{ u.full_name }}</strong>
+                                        {% if u.city %}<br><small class="text-muted"><i class="bi bi-geo-alt small"></i> {{ u.city }}</small>{% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-light">{{ u.email }}</small>
+                                        {% if u.phone %}<br><small class="text-muted"><i class="bi bi-telephone small"></i> {{ u.phone }}</small>{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if u.role == 1 %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1">Адмін</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary px-2 py-1">Клієнт</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <i class="bi bi-chevron-right text-muted"></i>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            {% if selected_user %}
+                <div class="card bg-dark border-secondary shadow-lg mb-4">
+                    <div class="card-header bg-secondary text-white py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-person-gear"></i> Управління: {{ selected_user.full_name }}</h6>
+                        <a href="{{ url_for('delete_user', id=selected_user.id_user) }}"
+                           class="btn btn-sm btn-danger fw-bold"
+                           onclick="return confirm('Ви впевнені, що хочете остаточно видалити цього користувача?')">
+                            <i class="bi bi-trash"></i> Видалити
+                        </a>
+                    </div>
+                    <div class="card-body text-light">
+                        <form action="{{ url_for('update_user_role', id=selected_user.id_user) }}" method="POST" class="row g-3 align-items-center">
+                            <div class="col-sm-8">
+                                <label class="form-label text-muted small mb-1">Змінити права доступу (Роль)</label>
+                                <select name="role" class="form-select bg-dark text-white border-secondary">
+                                    <option value="0" {% if selected_user.role == 0 %}selected{% endif %}>Клієнт (Звичайний користувач)</option>
+                                    <option value="1" {% if selected_user.role == 1 %}selected{% endif %}>Адміністратор системи</option>
+                                </select>
+                            </div>
+                            <div class="col-sm-4 mt-sm-4 pt-sm-2">
+                                <button type="submit" class="btn btn-warning w-100 text-dark fw-bold">Зберегти</button>
+                            </div>
+                        </form>
+
+                        <hr class="border-secondary my-3">
+
+                        <div class="small">
+                            <p class="mb-1"><strong>Адреса доставки:</strong> {{ selected_user.saved_address or 'Не вказано' }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-dark border-secondary shadow-lg">
+                    <div class="card-header bg-dark border-bottom border-secondary text-light py-3">
+                        <h6 class="mb-0 text-danger"><i class="bi bi-bag-check"></i> Історія покупок користувача</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover mb-0 align-middle">
+                                <thead>
+                                    <tr class="text-secondary small">
+                                        <th>Замовлення</th>
+                                        <th>Дата</th>
+                                        <th>Сума</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for h in history %}
+                                    <tr class="small">
+                                        <td><code>#{{ h.id_order }}</code></td>
+                                        <td>{{ h.order_date.strftime('%d.%m.%Y') if h.order_date else '—' }}</td>
+                                        <td class="text-info fw-bold">{{ "{:,.2f}".format(h.total_amount) }} грн</td>
+                                        <td>
+                                            {% if h.status == 'Виконано' %}
+                                                <span class="badge bg-success-subtle text-success border border-success py-0.5 px-1.5">Виконано</span>
+                                            {% elif h.status == 'Нове' %}
+                                                <span class="badge bg-primary-subtle text-primary border border-primary py-0.5 px-1.5">Нове</span>
+                                            {% else %}
+                                                <span class="badge bg-warning-subtle text-warning border border-warning py-0.5 px-1.5">{{ h.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">Цей користувач ще не робив замовлень.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="card bg-dark border-secondary shadow-lg h-100 d-flex align-items-center justify-content-center text-center p-5 border-dashed">
+                    <div class="py-5">
+                        <i class="bi bi-person-bounding-box display-3 text-secondary mb-3"></i>
+                        <h5 class="text-white">Користувача не обрано</h5>
+                        <p class="text-muted small">Клацніть на будь-якого користувача в таблиці зліва,<br>щоб переглянути його картку, змінити роль або перевірити історію покупок.</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.getElementById('user-search').addEventListener('input', function() {
+    const filter = this.value.toLowerCase().trim();
+    const rows = document.querySelectorAll('#users-table .user-row');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(filter)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
+</script>
+
+<style>
+.border-dashed {
+    border-style: dashed !important;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5 text-center" style="max-width: 600px;">
+    {% if status == 'success' %}
+        <div class="py-5">
+            <div class="mb-4">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 5.5rem;"></i>
+            </div>
+            <h1 class="fw-bold text-white">Дякуємо за замовлення!</h1>
+            <p class="lead text-white">Замовлення <span class="fw-bold text-primary">#{{ order_no }}</span> успішно оплачено та передано в обробку.</p>
+
+            {# === БЛОК ДЛЯ НОВОЇ ПОШТИ === #}
+            {% if ttn %}
+            <div class="card bg-dark border-secondary border rounded-4 p-4 my-4 text-start">
+                <h5 class="text-success fw-bold mb-2"><i class="bi bi-truck"></i> Доставка Новою Поштою</h5>
+                <p class="mb-0 text-white fs-5">Номер ТТН для відстеження: <strong class="text-warning">{{ ttn }}</strong></p>
+                <small class="text-muted d-block mt-2">Ви отримаєте SMS-сповіщення від перевізника, коли посилка прибуде у відділення.</small>
+            </div>
+            {% endif %}
+
+            {# === БЛОК ДЛЯ САМОВИВОЗУ === #}
+            {% if pickup_time %}
+            <div class="card bg-dark border-secondary border rounded-4 p-4 my-4 text-start">
+                <h5 class="text-info fw-bold mb-2"><i class="bi bi-geo-alt-fill"></i> Обрано Самовивіз</h5>
+                <p class="mb-0 text-white fs-6">Товар готовий до видачі за адресою магазину.</p>
+                <p class="mb-0 text-white mt-1">Графік роботи: <strong class="text-warning">{{ pickup_time }}</strong></p>
+                <small class="text-muted d-block mt-2">Для отримання замовлення назвіть менеджеру номер <span class="fw-bold text-primary">#{{ order_no }}</span>.</small>
+            </div>
+            {% endif %}
+
+            <div class="mt-4 gap-2 d-flex justify-content-center flex-column flex-sm-row">
+                <a href="/catalog" class="btn btn-primary btn-lg rounded-pill px-5">Продовжити покупки</a>
+                <a href="/profile" class="btn btn-outline-light btn-lg rounded-pill px-4">До особистого кабінету</a>
+            </div>
+        </div>
+    {% else %}
+        <div class="py-5">
+            <div class="mb-4">
+                <i class="bi bi-x-circle-fill text-danger" style="font-size: 5rem;"></i>
+            </div>
+            <h1 class="fw-bold text-white">Помилка оплати</h1>
+            <p class="lead text-muted">Не вдалося завершити транзакцію для замовлення <span class="fw-bold text-danger">#{{ order_no }}</span>.</p>
+            <p class="text-white-50">Будь ласка, перевірте баланс вашої картки або спробуйте змінити спосіб оплати в особистому кабінеті.</p>
+
+            <div class="mt-4 gap-2 d-flex justify-content-center flex-column flex-sm-row">
+                <a href="/profile" class="btn btn-danger btn-lg rounded-pill px-5">Перейти до замовлення</a>
+                <a href="/catalog" class="btn btn-outline-light btn-lg rounded-pill px-4">Повернутися в магазин</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

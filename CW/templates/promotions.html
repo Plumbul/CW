@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-success">Акційні пропозиції</h1>
+        <p class="lead">Акційні пропозиції діють лише при покупці у наших офлайн-магазинах</p>
+    </div>
+
+    <div class="row g-4">
+        {% if promos %}
+            {% for p in promos %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm border-0 bg-light">
+                    <div class="card-body text-center p-4">
+                        <div class="display-3 text-success mb-3">-{{ p.discount_percent }}%</div>
+                        <h3 class="card-title fw-bold text-dark">{{ p.name }}</h3>
+                        <hr class="mx-auto w-25">
+                        <p class="card-text text-muted">{{ p.description or "Знижка на обрані категорії товарів. Поспішайте оновити парк техніки!" }}</p>
+                        <a href="{{ url_for('catalog') }}" class="btn btn-success mt-3">Перейти до товарів</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12 text-center py-5">
+                <h3 class="text-muted">Зараз немає активних акцій. Слідкуйте за оновленнями!</h3>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

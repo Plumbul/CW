@@ -1,0 +1,378 @@
+{% extends "admin/base_admin.html" %}
+{% block admin_content %}
+
+<div class="container-fluid px-0 mt-2">
+    <div class="row g-3">
+
+        <!-- Таблиця товарів -->
+        <div class="col-xl-7 col-lg-6 mb-4">
+            <div class="card bg-dark border-secondary shadow-lg h-100">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0">Всі товари </h5>
+
+                    <select class="form-select form-select-sm w-auto bg-dark text-white border-secondary" onchange="window.location=this.value">
+                        <option value="{{ url_for('admin_products') }}">Новинки</option>
+                        <option value="{{ url_for('admin_products', sort='name_asc') }}" {% if current_sort == 'name_asc' %}selected{% endif %}>Назва ↑</option>
+                        <option value="{{ url_for('admin_products', sort='name_desc') }}" {% if current_sort == 'name_desc' %}selected{% endif %}>Назва ↓</option>
+                        <option value="{{ url_for('admin_products', sort='price_asc') }}" {% if current_sort == 'price_asc' %}selected{% endif %}>Ціна ↑</option>
+                        <option value="{{ url_for('admin_products', sort='price_desc') }}" {% if current_sort == 'price_desc' %}selected{% endif %}>Ціна ↓</option>
+                        <option value="{{ url_for('admin_products', sort='stock_asc') }}" {% if current_sort == 'stock_asc' %}selected{% endif %}>Залишок ↑</option>
+                        <option value="{{ url_for('admin_products', sort='stock_desc') }}" {% if current_sort == 'stock_desc' %}selected{% endif %}>Залишок ↓</option>
+                    </select>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="width: 70px;">ID</th>
+                                    <th>Назва</th>
+                                    <th>Категорія</th>
+                                    <th>Підкатегорія</th>
+                                    <th>Ціна</th>
+                                    <th>Залишок</th>
+                                    <th style="width: 100px;" class="text-center">Дії</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in products %}
+                                <tr>
+                                    <td><code>#{{ p.id_product }}</code></td>
+                                    <td><strong class="text-white">{{ p.name }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ p.category_name|default('—') }}</span></td>
+                                    <td><small class="text-muted">{{ p.subcategory_name|default('—') }}</small></td>
+                                    <td class="text-danger font-monospace fw-bold">{{ p.base_price }} грн</td>
+                                    <td>
+                                        <span class="badge {% if p.stock and p.stock > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ p.stock or 0 }} шт
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group">
+                                            <button onclick='editProduct({{ p|tojson }})' class="btn btn-sm btn-outline-warning" title="Редагувати">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <a href="{{ url_for('delete_product', pid=p.id_product) }}"
+                                               onclick="return confirm('Видалити товар &quot;{{ p.name }}&quot;?')"
+                                               class="btn btn-sm btn-outline-danger" title="Видалити">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">Товари відсутні. Додайте перший товар справа!</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Форма додавання / редагування -->
+        <div class="col-xl-5 col-lg-6">
+            <div class="card bg-dark border-secondary shadow-lg sticky-top" style="top: 20px;">
+                <div class="card-header bg-danger text-white py-3">
+                    <h5 class="mb-0" id="form-title"><i class="bi bi-plus-square"></i> Додати новий товар</h5>
+                </div>
+                <div class="card-body shadow">
+                    <form id="product-form" method="POST" action="{{ url_for('admin_save_product') }}" enctype="multipart/form-data">
+                        <input type="hidden" name="id_product" id="id_product">
+                        <input type="hidden" name="delete_images" id="delete_images" value="">
+
+                        <!-- Фото товару -->
+                        <div class="mb-4">
+                            <label class="form-label text-light">Фото товару (можна кілька файлів)</label>
+                            <input type="file" name="images" id="images" class="form-control bg-dark text-white border-secondary"
+                                   accept="image/*" multiple onchange="previewNewImages(this)">
+                            <small class="text-muted">JPG, PNG, WebP. Можна вибрати кілька файлів.</small>
+
+                            <button type="button" class="btn btn-outline-success mt-2" onclick="addSelectedImages()">
+                                <i class="bi bi-upload"></i> Додати вибрані фото до товару
+                            </button>
+
+                            <!-- Прев’ю нових фото -->
+                            <div id="new-images-preview" class="mt-3 d-flex flex-wrap gap-2"></div>
+
+                            <!-- Існуючі фото -->
+                            <div id="existing-images" class="mt-4"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-light">Назва товару</label>
+                            <input type="text" name="name" id="name" class="form-control bg-dark text-white border-secondary" required placeholder="Наприклад: Мотор-редуктор">
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <label class="form-label text-light">Ціна (грн)</label>
+                                <input type="number" step="0.01" name="base_price" id="base_price" class="form-control bg-dark text-white border-secondary" required placeholder="0.00">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-light">Залишок</label>
+                                <input type="number" name="stock" id="stock" class="form-control bg-dark text-white border-secondary" value="0" min="0">
+                            </div>
+                        </div>
+
+                        <div class="mb-3 border p-3 border-secondary rounded bg-black">
+                            <label class="form-label text-danger fw-bold"><i class="bi bi-folder"></i> Категорія товару</label>
+                            <select name="id_category" id="id_category" class="form-select mb-2 bg-dark text-white border-secondary" onchange="loadSubcategories(this.value)">
+                                <option value="">— Оберіть існуючу категорію —</option>
+                                {% for cat in main_categories %}
+                                <option value="{{ cat.id_category }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-secondary text-white border-secondary">Або впишіть нову:</span>
+                                <input type="text" name="new_category_name" id="new_category_name" class="form-control bg-dark text-white border-danger" placeholder="Назва нової категорії">
+                            </div>
+                        </div>
+
+                        <div class="mb-3 border p-3 border-secondary rounded bg-black">
+                            <label class="form-label text-danger fw-bold"><i class="bi bi-tags"></i> Підкатегорія товару</label>
+                            <select name="id_subcategory" id="id_subcategory" class="form-select mb-2 bg-dark text-white border-secondary">
+                                <option value="">— Спочатку оберіть категорію —</option>
+                            </select>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-secondary text-white border-secondary">Або впишіть нову:</span>
+                                <input type="text" name="new_subcategory_name" id="new_subcategory_name" class="form-control bg-dark text-white border-danger" placeholder="Назва нової підкатегорії">
+                            </div>
+                            <small class="text-muted d-block mt-1">Нова підкатегорія створиться у зв'язку з обраною категорією.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-light">Опис товару</label>
+                            <textarea name="description" id="description" class="form-control bg-dark text-white border-secondary" rows="3" placeholder="Технічні характеристики або опис..."></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label text-light d-flex justify-content-between align-items-center">
+                                <span>🛠️ Динамічні характеристики</span>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="addAttributeField()">+ Додати поле</button>
+                            </label>
+                            <div id="attributes-list"></div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-light w-25" onclick="resetForm()">Скинути</button>
+                            <button type="submit" class="btn btn-danger w-75 py-2 fw-bold shadow" id="submit-btn">Зберегти товар</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Глобальні змінні
+let imagesToDelete = [];
+let newFilesArray = []; // Масив для динамічного накопичення обраних файлів
+
+// Функція синхронізації нашого масиву файлів з оригінальним input формати
+function syncInputFiles() {
+    const input = document.getElementById('images');
+    const dataTransfer = new DataTransfer();
+    newFilesArray.forEach(file => {
+        dataTransfer.items.add(file);
+    });
+    input.files = dataTransfer.files;
+}
+
+function previewNewImages(input) {
+    if (newFilesArray.length + input.files.length > 10) {
+        alert("Максимум 10 фото для одного товару!");
+        input.value = '';
+        return;
+    }
+
+    Array.from(input.files).forEach(file => {
+        newFilesArray.push(file);
+    });
+
+    syncInputFiles();
+    renderNewImagesPreviews();
+}
+
+function renderNewImagesPreviews() {
+    const container = document.getElementById('new-images-preview');
+    container.innerHTML = '';
+
+    newFilesArray.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const div = document.createElement('div');
+            div.className = 'position-relative d-inline-block';
+            div.style.margin = '0 8px 8px 0';
+            div.innerHTML = `
+                <img src="${e.target.result}" style="max-height: 110px; max-width: 110px; object-fit: cover; border-radius: 8px; border: 2px solid #444;">
+                <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
+                        onclick="removeNewImage(${index})">×</button>
+            `;
+            container.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function removeNewImage(index) {
+    newFilesArray.splice(index, 1);
+    syncInputFiles();
+    renderNewImagesPreviews();
+}
+
+function addSelectedImages() {
+    if (newFilesArray.length === 0) {
+        alert("Спочатку виберіть файли!");
+        return;
+    }
+    alert("Фото успішно додано в чергу завантаження. Натисніть «Зберегти товар», щоб надіслати їх на сервер.");
+}
+
+function showExistingImages(images) {
+    const container = document.getElementById('existing-images');
+    container.innerHTML = `
+        <label class="form-label text-light">Поточні фото товару:</label>
+        <div id="existing-preview" class="d-flex flex-wrap gap-2"></div>
+    `;
+
+    const previewDiv = document.getElementById('existing-preview');
+
+    images.forEach(img => {
+        const div = document.createElement('div');
+        div.className = 'position-relative';
+        div.innerHTML = `
+            <img src="${img.url}" style="max-height: 110px; max-width: 110px; object-fit: cover; border-radius: 8px; border: 2px solid #444;">
+            <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1"
+                    onclick="deleteExistingImage(${img.id_image}, this)">×</button>
+        `;
+        previewDiv.appendChild(div);
+    });
+}
+
+function deleteExistingImage(imageId, btn) {
+    if (confirm('Видалити це фото?')) {
+        imagesToDelete.push(imageId);
+        document.getElementById('delete_images').value = imagesToDelete.join(',');
+        btn.parentElement.remove();
+    }
+}
+
+function editProduct(p) {
+    resetForm();
+
+    document.getElementById('form-title').innerHTML = '<i class="bi bi-pencil-square"></i> Редагувати товар';
+    document.getElementById('id_product').value = p.id_product;
+    document.getElementById('name').value = p.name || '';
+    document.getElementById('base_price').value = p.base_price || '';
+    document.getElementById('stock').value = p.stock || 0;
+    document.getElementById('description').value = p.description || '';
+    document.getElementById('submit-btn').textContent = 'Зберегти зміни';
+    document.getElementById('submit-btn').className = 'btn btn-warning w-75 py-2 text-dark fw-bold shadow';
+
+    if (p.id_category) {
+        document.getElementById('id_category').value = p.id_category;
+        loadSubcategories(p.id_category, p.id_subcategory);
+    } else {
+        loadSubcategories("");
+    }
+
+    if (p.images && Array.isArray(p.images) && p.images.length > 0) {
+        showExistingImages(p.images);
+    }
+
+    if (p.attributes && Array.isArray(p.attributes)) {
+        p.attributes.forEach(attr => {
+            addAttributeField(attr.attr_name, attr.value);
+        });
+    }
+
+    imagesToDelete = [];
+    document.getElementById('product-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+function loadSubcategories(catId, selectedSubId = null) {
+    const subSelect = document.getElementById('id_subcategory');
+    if (!catId) {
+        subSelect.innerHTML = '<option value="">— Спочатку оберіть категорію —</option>';
+        return;
+    }
+
+    fetch(`/admin/subcategories/${catId}`)
+        .then(response => response.json())
+        .then(data => {
+            subSelect.innerHTML = '<option value="">— Оберіть підкатегорію —</option>';
+            data.forEach(sub => {
+                const option = document.createElement('option');
+                option.value = sub.id;
+                option.textContent = sub.name;
+
+                // Перевіряємо збіг ID підкатегорії через приведення до String
+                if (selectedSubId && String(sub.id) === String(selectedSubId)) {
+                    option.selected = true;
+                }
+                subSelect.appendChild(option);
+            });
+        })
+        .catch(err => console.error('Помилка завантаження підкатегорій:', err));
+}
+
+function resetForm() {
+    document.getElementById('product-form').reset();
+    document.getElementById('id_product').value = '';
+    document.getElementById('delete_images').value = '';
+    document.getElementById('new_category_name').value = '';
+    document.getElementById('new_subcategory_name').value = '';
+    document.getElementById('form-title').innerHTML = '<i class="bi bi-plus-square"></i> Додати новий товар';
+    document.getElementById('submit-btn').textContent = 'Зберегти товар';
+    document.getElementById('submit-btn').className = 'btn btn-danger w-75 py-2 fw-bold shadow';
+    document.getElementById('attributes-list').innerHTML = '';
+    document.getElementById('new-images-preview').innerHTML = '';
+    document.getElementById('existing-images').innerHTML = '';
+    imagesToDelete = [];
+    newFilesArray = []; // Очищаємо наш накопичувальний масив при скиданні форми
+    loadSubcategories("");
+}
+
+function addAttributeField(name = '', value = '') {
+    const container = document.getElementById('attributes-list');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2 shadow-sm';
+    div.innerHTML = `
+        <input type="text" name="attr_name[]" class="form-control bg-dark text-white border-secondary form-control-sm" placeholder="Назва (напр. Матеріал)" value="${name}" required>
+        <input type="text" name="attr_value[]" class="form-control bg-dark text-white border-secondary form-control-sm" placeholder="Значення (напр. Алюміній Д16Т)" value="${value}" required>
+        <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">×</button>
+    `;
+    container.appendChild(div);
+}
+
+function loadSubcategories(catId, selectedSubId = null) {
+    const subSelect = document.getElementById('id_subcategory');
+    if (!catId) {
+        subSelect.innerHTML = '<option value="">— Спочатку оберіть категорію —</option>';
+        return;
+    }
+
+    fetch(`/admin/subcategories/${catId}`)
+        .then(response => response.json())
+        .then(data => {
+            subSelect.innerHTML = '<option value="">— Оберіть підкатегорію —</option>';
+            data.forEach(sub => {
+                const option = document.createElement('option');
+                option.value = sub.id;
+                option.textContent = sub.name;
+                if (selectedSubId && parseInt(sub.id) === parseInt(selectedSubId)) {
+                    option.selected = true;
+                }
+                subSelect.appendChild(option);
+            });
+        })
+        .catch(err => console.error('Помилка завантаження підкатегорій:', err));
+}
+</script>
+
+{% endblock %}

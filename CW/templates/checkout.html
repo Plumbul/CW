@@ -1,0 +1,210 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="container mt-5" style="max-width: 1000px;">
+    <div class="row g-4">
+
+        <div class="col-lg-7">
+            <h2 class="fw-bold mb-4">Оформлення замовлення</h2>
+
+            <form method="POST" action="{{ url_for('checkout') }}" id="checkout-form" onsubmit="return prepareCheckout(event)">
+                <input type="hidden" name="cart_data" id="cart_data" value="">
+
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-person-text me-2"></i>Контактні дані</h5>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">ПІБ</label>
+                            <input type="text" name="full_name" class="form-control" required placeholder="Іванов Іван Іванович" value="{{ session.get('full_name', '') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Телефон</label>
+                            <input type="tel" name="phone" class="form-control" required placeholder="+380">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" required placeholder="your@email.com">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-truck me-2"></i>Спосіб доставки</h5>
+
+                    <div class="mb-3">
+                        <select name="delivery_method" id="delivery_method" class="form-select form-select-lg" onchange="changeDelivery()">
+                            <option value="nova_poshta">Нова Пошта (у відділення)</option>
+                            <option value="self_pickup">Самовивіз із магазину</option>
+                            <option value="courier">Кур'єрська доставка</option>
+                        </select>
+                    </div>
+
+                    <div id="delivery_details_container" class="p-3 bg-dark bg-opacity-10 rounded-3 border">
+                        </div>
+                </div>
+
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-wallet2 me-2"></i>Спосіб оплати</h5>
+                    <select name="payment_method" class="form-select" required>
+                        <option value="cod">Оплата при отриманні (накладений платіж)</option>
+                        <option value="card">Оплата карткою на сайті</option>
+                    </select>
+                </div>
+
+                {% if not session.get('user_id') %}
+                <div class="card shadow-sm border-0 rounded-4 p-4 mb-4 bg-light bg-opacity-10">
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" id="create-account-checkbox" name="create_account" value="yes">
+                        <label class="form-check-label fw-bold text-info" for="create-account-checkbox">
+                            ✨ Бажаєте створити акаунт для відстеження замовлень?
+                        </label>
+                    </div>
+                    <div id="password-field-wrapper" class="mt-3 d-none">
+                        <label class="form-label">Придумайте пароль</label>
+                        <input type="password" name="password" id="account-password" class="form-control" placeholder="Мінімум 6 символів">
+                        <div class="form-text text-muted">Ви зможете бачити історію покупок у власному кабінеті.</div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 py-3 fw-bold rounded-pill shadow">
+                    Підтвердити замовлення
+                </button>
+            </form>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 rounded-4 p-4 position-sticky" style="top: 20px;">
+                <h4 class="fw-bold mb-4">Ваше замовлення</h4>
+                <div id="checkout-items-list" class="mb-4" style="max-height: 400px; overflow-y: auto;">
+                    </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Сума товарів:</span>
+                    <span id="checkout-total" class="fw-bold fs-5">0 грн</span>
+                </div>
+                <div class="d-flex justify-content-between mb-0">
+                    <span>Доставка:</span>
+                    <span class="text-success small fw-bold">За тарифами перевізника</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// Функція зміни блоків доставки
+function changeDelivery() {
+    const method = document.getElementById('delivery_method').value;
+    const container = document.getElementById('delivery_details_container');
+
+    if (method === 'nova_poshta') {
+        let options = '';
+        for (let i = 1; i <= 20; i++) {
+            options += `<option value="Відділення №${i} (м. Київ)">Відділення №${i} — м. Київ</option>`;
+        }
+        container.innerHTML = `
+            <label class="form-label fw-bold"><i class="bi bi-geo-alt"></i> Оберіть відділення Нової Пошти:</label>
+            <select name="delivery_address" class="form-select" required>
+                ${options}
+            </select>`;
+    } else if (method === 'self_pickup') {
+        container.innerHTML = `
+            <label class="form-label fw-bold"><i class="bi bi-shop"></i> Оберіть пункт самовивозу:</label>
+            <select name="delivery_address" class="form-select" required>
+                <option value="Магазин: вул. Центральна, 15 (9:00-20:00)">вул. Центральна, 15 (Пн-Нд 9:00-20:00)</option>
+                <option value="Магазин: пр. Степана Бандери, 42 (10:00-19:00)">пр. Степана Бандери, 42 (Пн-Сб 10:00-19:00)</option>
+                <option value="Магазин: вул. Хрещатик, 22 (БЕЗ ВИХІДНИХ)">вул. Хрещатик, 22 (Пн-Нд 10:00-21:00)</option>
+            </select>`;
+    } else if (method === 'courier') {
+        container.innerHTML = `
+            <label class="form-label fw-bold"><i class="bi bi-house-door"></i> Введіть повну адресу для кур'єра:</label>
+            <input type="text" name="delivery_address" class="form-control" required placeholder="м. Київ, вул. Шевченка 12, кв. 45">`;
+    }
+}
+
+// Перевірка кошика перед відправкою
+function prepareCheckout(event) {
+    const cart = localStorage.getItem('cart');
+    if (!cart || JSON.parse(cart).length === 0) {
+        alert('Ваш кошик порожній!');
+        event.preventDefault();
+        window.location.href = "{{ url_for('cart') }}";
+        return false;
+    }
+    document.getElementById('cart_data').value = cart;
+
+    setTimeout(() => { localStorage.removeItem('cart'); }, 100);
+    return true;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    changeDelivery();
+
+    const cart = JSON.parse(localStorage.getItem('cart')) || [];
+    const itemsList = document.getElementById('checkout-items-list');
+    const totalSpan = document.getElementById('checkout-total');
+
+    if (cart.length === 0) {
+        itemsList.innerHTML = '<p class="text-muted">Кошик порожній</p>';
+        return;
+    }
+
+    let total = 0;
+    itemsList.innerHTML = '';
+
+    cart.forEach(item => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+
+        // Формуємо правильний шлях до зображення (як у кошику)
+        let imgSrc = '';
+        if (item.image && item.image.trim() !== '') {
+            imgSrc = item.image.startsWith('/static') ? item.image : `/static/images/products/${item.image}`;
+        }
+
+        let imageHtml = '';
+        if (imgSrc) {
+            imageHtml = `<img src="${imgSrc}" class="img-fluid rounded border" style="width: 60px; height: 60px; object-fit: cover;" alt="${item.name}" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'bg-dark bg-opacity-10 text-muted rounded d-flex align-items-center justify-content-center border\' style=\'width: 60px; height: 60px;\'><i class=\'bi bi-image\'></i></div>';">`;
+        } else {
+            imageHtml = `<div class="bg-dark bg-opacity-10 text-muted rounded d-flex align-items-center justify-content-center border" style="width: 60px; height: 60px;"><i class="bi bi-image"></i></div>`;
+        }
+
+        const itemHtml = `
+            <div class="d-flex align-items-center mb-3 p-2 bg-light bg-opacity-10 rounded-3">
+                <div class="me-3 flex-shrink-0">
+                    ${imageHtml}
+                </div>
+                <div class="flex-grow-1 min-w-0">
+                    <h6 class="mb-0 fw-bold text-truncate" style="max-width: 220px;">${item.name}</h6>
+                    <small class="text-muted">${item.quantity} шт. × ${item.price.toLocaleString('uk-UA')} грн</small>
+                </div>
+                <div class="text-end flex-shrink-0 ms-2">
+                    <span class="fw-bold text-primary">${itemTotal.toLocaleString('uk-UA')} грн</span>
+                </div>
+            </div>`;
+        itemsList.insertAdjacentHTML('beforeend', itemHtml);
+    });
+
+    totalSpan.innerText = total.toLocaleString('uk-UA') + " грн";
+
+    // Перемикач пароля
+    const checkbox = document.getElementById('create-account-checkbox');
+    const passwordWrapper = document.getElementById('password-field-wrapper');
+    const passwordInput = document.getElementById('account-password');
+
+    if (checkbox) {
+        checkbox.addEventListener('change', function() {
+            if (this.checked) {
+                passwordWrapper.classList.remove('d-none');
+                passwordInput.setAttribute('required', 'required');
+            } else {
+                passwordWrapper.classList.add('d-none');
+                passwordInput.removeAttribute('required');
+                passwordInput.value = '';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel — Shop</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="admin-body">
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar-nav p-3">
+            <div class="d-flex align-items-center mb-4">
+                <i class="bi bi-shop fs-3 text-danger me-2"></i>
+                <h4 class="mb-0 fw-bold">Shop Admin</h4>
+            </div>
+
+            <div class="nav flex-column">
+                <a href="{{ url_for('admin_main') }}" class="nav-link {% if request.endpoint == 'admin_main' %}active{% endif %}">
+                    <i class="bi bi-speedometer2 me-2"></i> Дашборд
+                </a>
+                <a href="{{ url_for('admin_products') }}" class="nav-link {% if request.endpoint == 'admin_products' %}active{% endif %}">
+                    <i class="bi bi-box-seam me-2"></i> Товари
+                </a>
+                <a href="{{ url_for('admin_orders') }}" class="nav-link {% if request.endpoint == 'admin_orders' %}active{% endif %}">
+                    <i class="bi bi-receipt me-2"></i> Замовлення
+                </a>
+                <a href="{{ url_for('admin_users') }}" class="nav-link {% if request.endpoint == 'admin_users' %}active{% endif %}">
+                    <i class="bi bi-people me-2"></i> Користувачі
+                </a>
+                <a href="{{ url_for('admin_reviews') }}" class="nav-link {% if request.endpoint == 'admin_reviews' %}active{% endif %}">
+                    <i class="bi bi-chat-square-text me-2"></i> Відгуки
+                </a>
+                <a href="{{ url_for('admin_promotions') }}" class="nav-link {% if request.endpoint == 'admin_promotions' %}active{% endif %}">
+                    <i class="bi bi-megaphone me-2"></i> Акції
+                </a>
+
+                <div class="hr-line my-3" style="border-top: 1px solid #222222;"></div>
+                <a href="{{ url_for('index') }}" class="nav-link text-warning">
+                    <i class="bi bi-arrow-left-circle me-2"></i> На сайт
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-10 p-4 position-relative">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            {% block admin_content %}{% endblock %}
+        </div>
+    </div>
+</div>
+
+<button class="btn btn-outline-light position-fixed bottom-0 end-0 m-4 rounded-circle p-3 d-flex align-items-center justify-content-center" id="theme-toggle-admin" style="width: 50px; height: 50px; z-index: 1050; font-size: 1.35rem;">
+    <i class="bi bi-moon-stars-fill" id="theme-icon-admin"></i>
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    const themeToggle = document.getElementById('theme-toggle-admin');
+    const themeIcon = document.getElementById('theme-icon-admin');
+
+function setTheme(theme) {
+    const isLight = (theme === 'light');
+
+    if (isLight) {
+        document.body.classList.add('light-mode');
+        if (themeIcon) themeIcon.classList.replace('bi-moon-stars-fill', 'bi-sun-fill');
+        localStorage.setItem('theme', 'light');
+    } else {
+        document.body.classList.remove('light-mode');
+        if (themeIcon) themeIcon.classList.replace('bi-sun-fill', 'bi-moon-stars-fill');
+        localStorage.setItem('theme', 'dark');
+    }
+
+    // Примусове оновлення Chart.js + тексту
+    if (window.categoryChartInstance) {
+        const textColor = isLight ? '#1f2937' : '#ffffff';
+        const borderColor = isLight ? '#ffffff' : '#111111';
+
+        window.categoryChartInstance.options.plugins.legend.labels.color = textColor;
+        window.categoryChartInstance.data.datasets[0].borderColor = borderColor;
+        window.categoryChartInstance.update();
+    }
+
+    // Примусовий рефлоу для тексту
+    document.documentElement.style.setProperty('--text-color', isLight ? '#1f2937' : '#ffffff');
+    }
+
+    function loadTheme() {
+        const saved = localStorage.getItem('theme') || 'dark';
+        setTheme(saved);
+    }
+
+    if (themeToggle) {
+        themeToggle.addEventListener('click', () => {
+            const isLight = document.body.classList.contains('light-mode');
+            setTheme(isLight ? 'dark' : 'light');
+        });
+    }
+
+    loadTheme();
+</script>
+
+{% block admin_scripts %}
+<script>
+// === ФІНАЛЬНЕ НАДІЙНЕ СОРТУВАННЯ ===
+function sortTable(table, colIndex) {
+    const tbody = table.tBodies[0];
+    let rows = Array.from(tbody.rows);
+
+    const th = table.querySelectorAll('thead th')[colIndex];
+    const sortType = th.getAttribute('data-type') || 'string';
+
+    const isAsc = table.dataset.sortCol == colIndex && table.dataset.sortDir === 'asc';
+    const direction = isAsc ? -1 : 1;
+
+    rows.sort((rowA, rowB) => {
+        let cellA = rowA.cells[colIndex];
+        let cellB = rowB.cells[colIndex];
+
+        let valA = cellA.textContent.trim();
+        let valB = cellB.textContent.trim();
+
+        // Для статусів (badge)
+        if (cellA.querySelector('.badge')) {
+            valA = cellA.querySelector('.badge').textContent.trim();
+            valB = cellB.querySelector('.badge').textContent.trim();
+        }
+
+        switch(sortType) {
+            case 'number':
+                // Обробка зірок ★
+                if (valA.includes('★')) {
+                    valA = (valA.match(/★/g) || []).length;
+                    valB = (valB.match(/★/g) || []).length;
+                } else {
+                    valA = parseFloat(valA.replace(/[^0-9.,-]/g, '').replace(',', '.')) || 0;
+                    valB = parseFloat(valB.replace(/[^0-9.,-]/g, '').replace(',', '.')) || 0;
+                }
+                return (valA - valB) * direction;
+
+            case 'date':
+                valA = parseDateReliable(valA);
+                valB = parseDateReliable(valB);
+                return (valA.getTime() - valB.getTime()) * direction;
+
+            case 'status':
+                const statusOrder = {
+                    'Виконано': 1, 'В обробці': 2, 'Підтверджено': 3,
+                    'Активний': 4, 'Приховано': 5
+                };
+                valA = statusOrder[valA] || 99;
+                valB = statusOrder[valB] || 99;
+                return (valA - valB) * direction;
+
+            default:
+                return valA.localeCompare(valB, 'uk-UA') * direction;
+        }
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+
+    // Збереження стану
+    table.dataset.sortCol = colIndex;
+    table.dataset.sortDir = isAsc ? 'desc' : 'asc';
+
+    // Візуальне позначення
+    table.querySelectorAll('th').forEach((th, i) => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (i === colIndex) {
+            th.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
+        }
+    });
+}
+
+function parseDateReliable(dateStr) {
+    if (!dateStr || dateStr === '—') return new Date(0);
+
+    // Найпоширеніший формат: "19.05.2026 20:24"
+    if (dateStr.includes('.')) {
+        const datePart = dateStr.split(' ')[0];           // "19.05.2026"
+        const parts = datePart.split('.');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1;
+            const year = parseInt(parts[2], 10);
+            return new Date(year, month, day);
+        }
+    }
+
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date(0) : parsed;
+}
+
+// Ініціалізація
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.table').forEach(table => {
+        const headers = table.querySelectorAll('thead th');
+        headers.forEach((th, index) => {
+            if (th.getAttribute('data-sortable') !== 'false') {
+                th.style.cursor = 'pointer';
+                th.title = 'Клік для сортування ↑↓';
+
+                th.addEventListener('click', () => sortTable(table, index));
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+</body>
+</html>
